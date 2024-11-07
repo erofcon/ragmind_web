@@ -13,41 +13,21 @@ const notificationStore = NotificationStore();
 const router = useRouter();
 const route = useRoute();
 const loading = ref(true);
-const messages = ref([
-  {
-    "role": "user",
-    "content": "Why should I use Pinia?"
-  },
-  {
-    "role": "assistant",
-    "content": "Pinia is a store library for Vue, it allows you to share a state across components/pages. If you are familiar with the Composition API, you might be thinking you can already share a global state with a simple export const state = reactive({}). This is true for single page applications but exposes your application to security vulnerabilities if it is server side rendered. But even in small single page applications, you get a lot from using Pinia:\n" +
-      "\n" +
-      "Testing utilities\n" +
-      "Plugins: extend Pinia features with plugins\n" +
-      "Proper TypeScript support or autocompletion for JS users\n" +
-      "Server Side Rendering support\n" +
-      "Devtools support\n" +
-      "A timeline to track actions and mutations\n" +
-      "Stores appear in components where they are used\n" +
-      "Time travel and easier debugging\n" +
-      "Hot module replacement\n" +
-      "Modify your stores without reloading your page\n" +
-      "Keep any existing state while developing\n" +
-      "If you still have doubts, check out the official Mastering Pinia course. In the begining we cover how to build our own defineStore() function and then we move to the official Pinia API."
-  }
-]);
-
+const sending = ref(false);
+const messages = ref([]);
 const newMessage = ref("");
 
+let assistantMessageIndex = null;
+let isStreaming = false;
 
 async function loadMessages() {
 
   try {
     const result = await chat_api.get_chat_messages(route.params.id);
 
-    // if (result.status === 200) {
-    //   messages.value = result.data;
-    // }
+    if (result.status === 200) {
+      messages.value = result.data;
+    }
 
     return result.status;
 
@@ -59,20 +39,130 @@ async function loadMessages() {
 }
 
 function addMessage() {
-  if (newMessage.value.trim() === "") return; // Проверка, что текст не пустой
+  if (newMessage.value.trim() === "") return;
 
-  // Добавляем новое сообщение в массив messages
   messages.value.push({
     role: "user",
     content: newMessage.value
   });
 
-  newMessage.value = ""; // Очистка поля после добавления
+  newMessage.value = "";
+}
+
+async function generation() {
+  if (newMessage.value.trim() === "") return;
+
+  const body = {
+    role: "user",
+    content: newMessage.value
+  }
+
+  messages.value.push(body)
+
+  newMessage.value = "";
+
+  const result = await chat_api.generation_message(
+    route.params.id,
+    body,
+    false,
+    false,
+    false
+  )
+
+  if (result.status === 200) {
+    messages.value.push(result.data);
+  }
+
+}
+
+async function generation_message() {
+  if (newMessage.value.trim() === "") return;
+
+  const newMsg = {
+    role: "user",
+    content: newMessage.value
+  }
+  messages.value.push(newMsg);
+
+  newMessage.value = "";
+
+  sending.value = true;
+  isStreaming = true;
+
+  const url = new URL('http://localhost:8000/api/v1/chat/generation');
+
+  url.searchParams.append('chat_id', route.params.id.toString());
+  url.searchParams.append('user_rag', false);
+  url.searchParams.append('extract_keywords', false);
+  url.searchParams.append('stream', true);
+
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(newMsg)
+  });
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  messages.value.push({role: 'assistant', content: ''});
+  console.log(messages.value.length)
+  console.log(messages.value[25])
+  assistantMessageIndex = messages.value.length - 1;
+
+  const readChunk = async ({done, value}) => {
+    if (done || !isStreaming) {
+      isStreaming = false;
+      return;
+    }
+
+    const decodedMessage = decoder.decode(value, {stream: true});
+    console.log(decodedMessage)
+    messages.value[assistantMessageIndex].content += decodedMessage;
+
+    const nextChunk = await reader.read();
+    await readChunk(nextChunk);
+  };
+
+  // const initialChunk = await reader.read();
+  // await readChunk(initialChunk);
+
+  sending.value = false;
+
 }
 
 
-onMounted(async () => {
+// fetch('/api/v1/chat/generation', {
+//   method: 'POST',
+//   headers: { 'Content-Type': 'application/json' },
+//   body: JSON.stringify({ chat_id, message })
+// })
+//   .then(response => {
+//     const reader = response.body.getReader();
+//     let isFirstChunk = true;
+//
+//     reader.read().then(function processText({ done, value }) {
+//       if (done) return;
+//
+//       const text = new TextDecoder().decode(value);
+//       if (isFirstChunk) {
+//         const metadata = JSON.parse(text); // Обработка первых данных как метаданных
+//         console.log("Metadata:", metadata);
+//         isFirstChunk = false;
+//       } else {
+//         const content = JSON.parse(text); // Следующие данные — это content
+//         console.log("Content chunk:", content.content);
+//       }
+//
+//       return reader.read().then(processText);
+//     });
+//   });
 
+
+onMounted(async () => {
   const res = await loadMessages()
 
   if (res !== 200) {
@@ -81,6 +171,7 @@ onMounted(async () => {
   }
 
   loading.value = false;
+  console.log(messages.value)
 })
 </script>
 
@@ -120,7 +211,7 @@ onMounted(async () => {
           <v-col cols="10">
             <v-text-field
               v-model="newMessage"
-              :disabled="loading"
+              :disabled="loading || sending"
               type="text"
               bg-color="gray_1"
               density="compact"
@@ -128,14 +219,21 @@ onMounted(async () => {
               variant="solo"
               hide-details
               single-line
-              @keydown.enter="addMessage"
+              @keydown.enter="generation"
             >
+              <template #prepend>
+                <v-btn
+                  icon="mdi-cog-outline"
+                  density="compact"
+                  elevation="0"
+                />
+              </template>
               <template #append>
                 <v-btn
                   color="primary"
                   text="Отправить"
-                  :disabled="loading || !newMessage.trim()"
-                  @click="addMessage"
+                  :disabled="loading || !newMessage.trim() || sending"
+                  @click="generation"
                 />
               </template>
             </v-text-field>

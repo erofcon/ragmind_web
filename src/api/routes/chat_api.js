@@ -30,6 +30,19 @@ export const chat_api = {
     const url = '/api/v1/chat/message/list';
 
     return defaultApiInstance.get(url, {params: {chat_id: chatID}})
+  },
+
+  generation_message(chatID, body, useRag, extractKeywords, stream = false) {
+    const url = '/api/v1/chat/generation';
+
+    return defaultApiInstance.post(url, body, {
+      params: {
+        chat_id: chatID,
+        use_rag: useRag,
+        extract_keywords: extractKeywords,
+        stream: stream
+      }
+    });
   }
 
 }
