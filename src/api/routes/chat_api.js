@@ -32,7 +32,7 @@ export const chat_api = {
     return defaultApiInstance.get(url, {params: {chat_id: chatID}})
   },
 
-  generation_message(chatID, body, useRag, extractKeywords, stream = false) {
+  generation_messagev2(chatID, body, useRag, extractKeywords, stream = false) {
     const url = '/api/v1/chat/generation';
 
     return defaultApiInstance.post(url, body, {
@@ -43,6 +43,27 @@ export const chat_api = {
         stream: stream
       }
     });
+  },
+
+  generation_message(chatID, body, useRag, extractKeywords, stream = false) {
+    const url = '/api/v1/chat/generation';
+
+    return defaultApiInstance.post(url, body, {
+      params: {
+        chat_id: chatID,
+        use_rag: useRag,
+        extract_keywords: extractKeywords,
+        stream: stream
+      },
+      responseType: stream ? 'stream' : 'json' // Устанавливаем тип ответа
+    });
+  },
+
+  chat_clear(chatID) {
+    const url = '/api/v1/chat/message/clear';
+
+    return defaultApiInstance.post(url, {}, {params: {chat_id: chatID}})
+
   }
 
 }
