@@ -4,6 +4,7 @@ This is the official scaffolding tool for Vuetify, designed to give you a head s
 
 ## ❗️ Important Links
 
+
 - 📄 [Docs](https://vuetifyjs.com/)
 - 🚨 [Issues](https://issues.vuetifyjs.com/)
 - 🏬 [Store](https://store.vuetifyjs.com/)

@@ -1,5 +1,6 @@
 // Styles
 import '@mdi/font/css/materialdesignicons.css'
+import 'highlight.js/styles/monokai.css';
 import 'vuetify/styles'
 
 import colors from 'vuetify/util/colors'

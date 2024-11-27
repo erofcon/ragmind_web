@@ -1,25 +1,36 @@
 <script setup>
 import {defineProps, ref, watch} from 'vue';
+import Markdown from 'vue3-markdown-it';
+import MarkdownItStrikethroughAlt from 'markdown-it-strikethrough-alt';
+import { full as emoji } from 'markdown-it-emoji'
+import markdownit from 'markdown-it'
+
 
 const props = defineProps({
   message: {
     type: String,
     required: true
   },
-  kb_content: {
-    type: String,
-    default: ""
-  },
   sources: {
     type: Object,
     default: null
-  }
+  },
+  metadata: {
+    type: Object,
+    default: null
+  },
 });
 
 const modifiedMessage = ref(props.message);
 
 const tooltipText = ref("Копировать");
 const getSource = ref(false)
+
+const plugins = [
+  {
+    plugin: MarkdownItStrikethroughAlt
+  }
+]
 
 watch(() => props.message, (newMessage) => {
   modifiedMessage.value = newMessage + " дополнительный текст";
@@ -39,7 +50,7 @@ function copyText() {
   <v-row>
     <v-col cols="auto">
       <v-avatar size="40">
-        <v-icon size="40" color="primary" icon="mdi-google-assistant"/>
+        <v-icon size="40" color="primary" icon="mdi-robot-angry"/>
       </v-avatar>
     </v-col>
     <v-col>
@@ -64,7 +75,7 @@ function copyText() {
               <v-dialog max-width="50%">
                 <template v-slot:activator="{ props: activatorProps }">
                   <v-btn
-                    :disabled="kb_content===''"
+                    :disabled="metadata.kb_content===''"
                     v-bind="activatorProps, props"
                     density="comfortable"
                     elevation="0"
@@ -75,7 +86,7 @@ function copyText() {
                 <template v-slot:default="{ isActive }">
                   <v-card>
                     <v-card-text>
-                      {{ kb_content }}
+                      {{ metadata }}
                     </v-card-text>
                   </v-card>
                 </template>
@@ -102,9 +113,11 @@ function copyText() {
           </v-tooltip>
         </v-col>
         <v-col cols="12" class="py-0">
-          <span>
-             {{ props.message }}
-          </span>
+
+          <Markdown :source="props.message" :plugins="plugins" />
+<!--          <span class="pre">-->
+<!--             {{ props.message }}-->
+<!--          </span>-->
         </v-col>
 
         <v-col

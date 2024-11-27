@@ -59,29 +59,28 @@ defineProps(['drawer']);
         </span>
       </v-list-subheader>
 
-      <div
-        v-for="chat in chatStore.chat_list"
-        :key="chat.id"
-      >
-        <v-list-item
-          :title="chat.name"
-          class="list-item"
-          value="s"
-          @click="$router.push({ name: 'Chat', params: { id: chat.id } })"
-        >
-          <template #append>
-            <ChatConfigurationDialog
-              tooltip-text="Конфигурация"
-              button-class="bg-transparent"
-              button-density="compact"
-              button-icon="mdi-dots-horizontal"
-              type="update"
-              :chat="chat"
-            />
-          </template>
 
-        </v-list-item>
-      </div>
+      <v-list-item
+        v-if="chatStore.chat_list"
+        v-for="chat in chatStore.chat_list"
+        :value="chat"
+        :title="chat.name"
+        class="list-item"
+        value="s"
+        @click="$router.push({ name: 'Chat', params: { id: chat.id } })"
+      >
+        <template #append>
+          <ChatConfigurationDialog
+            tooltip-text="Конфигурация"
+            button-class="bg-transparent"
+            button-density="compact"
+            button-icon="mdi-dots-horizontal"
+            type="update"
+            :chat="chat"
+          />
+        </template>
+
+      </v-list-item>
 
     </v-list>
 
